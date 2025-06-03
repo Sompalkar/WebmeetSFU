@@ -28,6 +28,7 @@ const registerUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
             }
         });
         if ((userCheck === null || userCheck === void 0 ? void 0 : userCheck.email) === email) {
+            res.status(400).json({ message: "User already registered" });
             return;
         }
         const hashedPassword = yield bcrypt_1.default.hash(password, 10);
@@ -53,29 +54,25 @@ const registerUser = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     }
 });
 exports.registerUser = registerUser;
-const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const loginUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { email, password } = req.body;
     try {
         const existingUser = yield prisma.user.findFirst({
             where: { email },
         });
         if (!existingUser || !existingUser.password) {
-            return res.status(404).json({ message: "User not found, and password in undefined" });
+            res.status(404).json({ message: "User not found or password undefined" });
+            return;
         }
         const isPasswordValid = yield bcrypt_1.default.compare(password, existingUser.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            res.status(401).json({ message: "Invalid credentials" });
+            return;
         }
-        const token = jsonwebtoken_1.default.sign({ userId: existingUser.id }, jwtSecret, {
-            expiresIn: "7d",
-        });
-        // res.cookie("token", token, {
-        //   httpOnly: true,
-        //   secure: process.env.NODE_ENV === "production", // ensures HTTPS only in prod
-        //   sameSite: "lax",
-        //   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        // });
-        res.status(200).json({
+        const token = jsonwebtoken_1.default.sign({ userId: existingUser.id }, jwtSecret);
+        res.cookie("token", token, {
+            httpOnly: true,
+        }).json({
             message: "Login successful",
             user: {
                 id: existingUser.id,
@@ -83,6 +80,7 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 userName: existingUser.name,
             },
         });
+        // res.status(200).json();
     }
     catch (error) {
         console.error("Login error:", error);
@@ -91,5 +89,31 @@ const loginUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.loginUser = loginUser;
 const updateUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { username, email, password } = req.body;
+    try {
+        const userCheck = yield prisma.user.findFirst({
+            where: {
+                email: email
+            }
+        });
+        if (!userCheck) {
+            res.status(400).json({ message: "User Not found with this record" });
+        }
+        const hashedPassword = yield bcrypt_1.default.hash(password, 10);
+        const updatedUser = yield prisma.user.update({
+            where: {
+                email: email
+            },
+            data: {
+                name: username,
+                password: hashedPassword
+            }
+        });
+        res.status(200).json({ message: "User updated successfully ", user: { username: updatedUser.name } });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(400).json({ "message": " Incorrect Credentials try with diffrent email" });
+    }
 });
 exports.updateUser = updateUser;

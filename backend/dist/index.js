@@ -14,7 +14,10 @@ const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
 app.use((0, cookie_parser_1.default)());
 app.use(express_1.default.json());
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: "http://localhost:3000", // your frontend origin
+    credentials: true, // allow cookies to be sent
+}));
 // ✅ Setup WebSocket server
 const wss = new ws_1.Server({ server: httpServer });
 wss.on("connection", (ws) => {
